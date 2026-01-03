@@ -44,7 +44,7 @@ An intelligent interview preparation tool that conducts personalized mock interv
 
 - Python 3.9 or higher
 - A Groq API key (get it from [Groq Console](https://console.groq.com/home))
-- Modern web browser (Chrome recommended for voice features)
+- Specifically designed for chrome browser
 
 ## Installation 🚀
 
