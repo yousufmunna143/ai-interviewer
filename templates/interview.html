@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Interview Session</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Main container -->
+  <div class="container">
+    <h2>🧠 Mock Interview Session</h2>
+    
+    <!-- Interview timer -->
+    <div class="timer" id="timer">⏱ Time Left: <span>10:00</span></div>
+
+    <!-- Error message container -->
+    <div id="error-container" class="error" style="display: none;"></div>
+    
+    <!-- Chat interface with accessibility support -->
+    <div class="chat-box" id="chat" role="log" aria-live="polite"></div>
+
+    <!-- User input section -->
+    <div class="input-group">
+      <input 
+        type="text" 
+        id="user-input" 
+        placeholder="Type your answer here..." 
+        aria-label="Your answer"
+        autocomplete="off"
+      >
+      <!-- Control buttons -->
+      <div class="button-group">
+        <button onclick="sendAnswer()" id="send-btn" aria-label="Send answer">
+          <span>Send</span>
+        </button>
+        <button onclick="toggleVoice()" id="voice-btn" aria-label="Toggle voice input">
+          🎤 Voice
+        </button>
+        <button onclick="confirmEndInterview()" class="danger" aria-label="End interview">
+          End Interview
+        </button>
+      </div>
+    </div>
+
+    <!-- Score and feedback display -->
+    <div class="score-box" id="score-box" role="complementary" aria-label="Answer scores"></div>
+  </div>
+
+  <script>
+    // ===== Global Variables =====
+    
+    // Timer settings
+    let seconds = 600;  // 10 minutes in seconds
+    
+    // State management
+    let listening = false;  // Voice recognition state
+    let isProcessing = false;  // Request processing state
+
+    // DOM element references
+    const timerEl = document.getElementById("timer");
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("user-input");
+    const sendBtn = document.getElementById("send-btn");
+    const voiceBtn = document.getElementById("voice-btn");
+    const errorContainer = document.getElementById("error-container");
+
+    // ===== Speech Recognition Setup =====
+    const SpeechRecognition = window.SpeechRecognition || window.webkitUgnition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+
+    // ===== UI Helper Functions =====
+
+    /**
+     * Display error message with auto-hide after 5 seconds
+     * @param {string} message - Error message to display
+     */
+    function showError(message) {
+      errorContainer.textContent = message;
+      errorContainer.style.display = "block";
+      setTimeout(() => {
+        errorContainer.style.display = "none";
+      }, 5000);
+    }
+
+    /**
+     * Set loading state for UI elements during API calls
+     * @param {boolean} isLoading - Whether the UI is in loading state
+     */
+    function setLoading(isLoading) {
+      isProcessing = isLoading;
+      sendBtn.disabled = isLoading;
+      input.disabled = isLoading;
+      if (isLoading) {
+        sendBtn.classList.add("loading");
+      } else {
+        sendBtn.classList.remove("loading");
+      }
+    }
+
+    /**
+     * Use browser's text-to-speech to speak the given text
+     * @param {string} text - Text to be spoken
+     */
+    const speakText = (text) => {
+      if (!text) return;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      speechSynthesis.speak(utterance);
+    };
+
+    /**
+     * Initialize and start the interview countdown timer
+     * Automatically ends interview when time runs out
+     */
+    const startTimer = () => {
+      const interval = setInterval(() => {
+        seconds--;
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        timerEl.querySelector("span").textContent = 
+          `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        
+        // Visual warning when less than 1 minute remains
+        if (seconds <= 60) {
+          timerEl.style.color = "var(--danger)";
+        }
+        
+        if (seconds <= 0) {
+          clearInterval(interval);
+          endInterview();
+        }
+      }, 1000);
+    };
+
+    /**
+     * Add a new message to the chat interface
+     * @param {string} sender - Message sender (AI/User/System)
+     * @param {string} message - Message content
+     * @param {boolean} isError - Whether this is an error message
+     */
+    const appendMessage = (sender, message, isError = false) => {
+      const div = document.createElement("div");
+      div.className = `chat-message ${sender.toLowerCase()}`;
+      div.innerHTML = `<strong>${sender}:</strong> ${message}`;
+      if (isError) div.style.color = "var(--danger)";
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    };
+
+    // ===== Core Interview Functions =====
+
+    /**
+     * Process and send user's answer to the backend
+     * 1. Get AI's response
+     * 2. Get answer rating
+     * 3. Update UI with results
+     */
+    async function sendAnswer() {
+      const msg = input.value.trim();
+      if (!msg || isProcessing) return;
+
+      setLoading(true);
+      appendMessage("You", msg);
+      input.value = "";
+
+      try {
+        // Get AI's response to the answer
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg })
+        });
+
+        if (!response.ok) throw new Error("Failed to get AI response");
+        const data = await response.json();
+        
+        if (data.response) {
+          appendMessage("AI", data.response);
+          speakText(data.response);
+        }
+
+        // Get rating for the answer
+        const ratingResponse = await fetch("/rate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg })
+        });
+
+        if (!ratingResponse.ok) throw new Error("Failed to get rating");
+        const ratingData = await ratingResponse.json();
+        
+        // Display score and feedback
+        const scoreBox = document.getElementById("score-box");
+        const scoreDiv = document.createElement("div");
+        scoreDiv.className = "score-item";
+        scoreDiv.innerHTML = `
+          <span>📝</span>
+          <span>Score: ${ratingData.score}/5</span>
+          <span>-</span>
+          <span>${ratingData.reason}</span>
+        `;
+        scoreBox.appendChild(scoreDiv);
+      } catch (error) {
+        console.error("Error:", error);
+        showError("An error occurred. Please try again.");
+        appendMessage("System", "Failed to process your answer. Please try again.", true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ===== Voice Recognition Functions =====
+
+    /**
+     * Toggle voice recognition on/off
+     * Updates button state and starts/stops recognition
+     */
+    function toggleVoice() {
+      if (listening) {
+        recognition.stop();
+        voiceBtn.textContent = "🎤 Voice";
+      } else {
+        input.value = "";
+        recognition.start();
+        voiceBtn.textContent = "🔴 Stop";
+      }
+      listening = !listening;
+    }
+
+    // Speech recognition event handlers
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript;
+      input.value = text;
+      toggleVoice();
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      showError("Voice recognition failed. Please try typing instead.");
+      toggleVoice();
+    };
+
+    // ===== Interview Control Functions =====
+
+    /**
+     * Confirm before ending the interview
+     * Prevents accidental interview termination
+     */
+    function confirmEndInterview() {
+      if (confirm("Are you sure you want to end the interview?")) {
+        endInterview();
+      }
+    }
+
+    /**
+     * End the interview and redirect to results page
+     */
+    function endInterview() {
+      window.location.href = "/finish";
+    }
+
+    // ===== Event Listeners =====
+
+    // Handle enter key for sending messages
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendAnswer();
+      }
+    });
+
+    // ===== Initialization =====
+    window.onload = async () => {
+      try {
+        // Get first interview question
+        const response = await fetch("/first_question");
+        if (!response.ok) throw new Error("Failed to get first question");
+        
+        const data = await response.json();
+        if (data.response) {
+          appendMessage("AI", data.response);
+          speakText(data.response);
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        showError("Failed to start the interview. Please refresh the page.");
+      }
+
+      // Start interview timer
+      startTimer();
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Interview Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Main container -->
+  <div class="container">
+    <!-- Header section -->
+    <header>
+      <h1>🤖 AI Interview Assistant</h1>
+      <p>Practice interviews with AI-powered feedback</p>
+    </header>
+
+    <!-- Interview setup form -->
+    <form action="/start" method="post" enctype="multipart/form-data" class="setup-form">
+      <!-- Resume upload section -->
+      <div class="form-group">
+        <label for="resume">Upload Your Resume (PDF only)</label>
+        <input 
+          type="file" 
+          id="resume" 
+          name="resume" 
+          accept=".pdf"
+          required 
+          aria-required="true"
+          aria-describedby="resume-help"
+        >
+        <small id="resume-help">Maximum file size: 16MB</small>
+      </div>
+
+      <!-- Interview topic selection -->
+      <div class="form-group">
+        <label for="topic">Select Interview Topic</label>
+        <select 
+          id="topic" 
+          name="topic" 
+          required 
+          aria-required="true"
+          aria-describedby="topic-help"
+        >
+          <option value="">Choose a topic...</option>
+          <option value="dsa">Data Structures & Algorithms</option>
+          <option value="dbms">Database Management</option>
+          <option value="oop">Object-Oriented Programming</option>
+          <option value="system_design">System Design</option>
+          <option value="web_dev">Web Development</option>
+          <option value="ml">Machine Learning</option>
+        </select>
+        <small id="topic-help">Choose the area you want to practice</small>
+      </div>
+
+      <!-- Groq API key input -->
+      <div class="form-group">
+        <label for="groq-api">Groq API Key</label>
+        <input 
+          type="password" 
+          id="groq-api" 
+          name="groq_api" 
+          required 
+          aria-required="true"
+          aria-describedby="api-help"
+          placeholder="Enter your Groq API key"
+        >
+        <small id="api-help">
+          Get your API key from <a href="https://console.groq.com/home" target="_blank" rel="noopener">Groq Console</a>
+        </small>
+      </div>
+
+      <!-- Form submission -->
+      <button type="submit" class="primary-btn">Start Interview</button>
+    </form>
+  </div>
+
+  <script>
+    // ===== Form Validation =====
+
+    /**
+     * Validate file input for PDF type and size
+     * @param {HTMLInputElement} fileInput - The file input element
+     * @returns {boolean} - Whether the file is valid
+     */
+    function validateFile(fileInput) {
+      const file = fileInput.files[0];
+      
+      // Check if file is selected
+      if (!file) {
+        alert("Please select a resume file.");
+        return false;
+      }
+
+      // Validate file type
+      if (!file.type.match('application/pdf')) {
+        alert("Please upload a PDF file only.");
+        fileInput.value = '';
+        return false;
+      }
+
+      // Validate file size (16MB max)
+      const maxSize = 16 * 1024 * 1024; // 16MB in bytes
+      if (file.size > maxSize) {
+        alert("File size must be less than 16MB.");
+        fileInput.value = '';
+        return false;
+      }
+
+      return true;
+    }
+
+    /**
+     * Validate API key format
+     * @param {string} key - The API key to validate
+     * @returns {boolean} - Whether the key format is valid
+     */
+    function validateApiKey(key) {
+      // Basic format validation
+      if (!key || key.length < 20) {
+        alert("Please enter a valid Groq API key.");
+        return false;
+      }
+      return true;
+    }
+
+    // ===== Event Listeners =====
+
+    // File input validation
+    document.getElementById('resume').addEventListener('change', function() {
+      validateFile(this);
+    });
+
+    // Form submission validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+      const fileInput = document.getElementById('resume');
+      const apiKey = document.getElementById('groq-api').value;
+      const topic = document.getElementById('topic').value;
+
+      // Validate all required fields
+      if (!validateFile(fileInput) || !validateApiKey(apiKey) || !topic) {
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    // Topic selection validation
+    document.getElementById('topic').addEventListener('change', function() {
+      if (!this.value) {
+        this.setCustomValidity('Please select an interview topic');
+      } else {
+        this.setCustomValidity('');
+      }
+    });
+  </script>
+</body>
+</html>

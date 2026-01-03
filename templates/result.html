@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interview Results</title>
+  <link rel="stylesheet" href="/static/style.css">
+  
+  <!-- Custom styles for results page -->
+  <style>
+    /* Circular progress indicator styles */
+    .score-circle {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 2rem auto;
+    }
+
+    .score-circle svg {
+      transform: rotate(-90deg);
+    }
+
+    .score-circle circle {
+      fill: none;
+      stroke-width: 10;
+      stroke-linecap: round;
+    }
+
+    .score-circle .bg {
+      stroke: var(--border-color);
+    }
+
+    .score-circle .progress {
+      stroke: var(--primary-color);
+      transition: stroke-dasharray 0.5s ease;
+    }
+
+    .score-value {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    /* Results section styles */
+    .results-section {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .feedback {
+      margin: 2rem 0;
+      padding: 1.5rem;
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      text-align: left;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Main container -->
+  <div class="container">
+    <!-- Results header -->
+    <header>
+      <h1>Interview Results</h1>
+      <p>Here's how you performed in your mock interview</p>
+    </header>
+
+    <!-- Results content -->
+    <div class="results-section">
+      <!-- Circular score indicator -->
+      <div class="score-circle" role="progressbar" aria-valuenow="{{ score }}" aria-valuemin="0" aria-valuemax="5">
+        <svg width="200" height="200">
+          <circle class="bg" cx="100" cy="100" r="90"></circle>
+          <circle class="progress" cx="100" cy="100" r="90"></circle>
+        </svg>
+        <div class="score-value">{{ score }}/5</div>
+      </div>
+
+      <!-- Performance feedback -->
+      <div class="feedback">
+        <h3>Performance Analysis</h3>
+        <ul>
+          {% if score >= 4.5 %}
+            <li>Outstanding performance! Your answers were thorough and well-structured.</li>
+            <li>Excellent technical knowledge and communication skills.</li>
+            <li>Ready for real interviews in this topic.</li>
+          {% elif score >= 3.5 %}
+            <li>Good performance! You demonstrated solid understanding.</li>
+            <li>Some areas could use more detail or clarity.</li>
+            <li>Consider practicing more complex scenarios.</li>
+          {% elif score >= 2.5 %}
+            <li>Fair performance. You have a basic grasp of the concepts.</li>
+            <li>Focus on providing more detailed explanations.</li>
+            <li>Review core concepts and practice structured responses.</li>
+          {% else %}
+            <li>More preparation needed in this topic.</li>
+            <li>Focus on understanding fundamental concepts.</li>
+            <li>Practice explaining your thoughts more clearly.</li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="action-buttons">
+        <button onclick="downloadTranscript()" class="secondary-btn">
+          📄 Download Transcript
+        </button>
+        <a href="/" class="primary-btn">
+          🔄 Start New Interview
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Score Animation =====
+
+    /**
+     * Animate the circular progress indicator based on the score
+     * @param {number} score - Interview score (0-5)
+     */
+    function animateScore(score) {
+      // Calculate percentage for circle progress
+      const percentage = (score / 5) * 100;
+      const circle = document.querySelector('.progress');
+      
+      // Circle properties
+      const radius = circle.getAttribute('r');
+      const circumference = 2 * Math.PI * radius;
+      
+      // Calculate stroke dash values
+      const offset = circumference - (percentage / 100) * circumference;
+      
+      // Apply animation
+      circle.style.strokeDasharray = `${circumference} ${circumference}`;
+      circle.style.strokeDashoffset = circumference;
+      
+      // Trigger animation
+      setTimeout(() => {
+        circle.style.strokeDashoffset = offset;
+      }, 100);
+    }
+
+    /**
+     * Download the interview transcript
+     * Fetches transcript from server and triggers download
+     */
+    async function downloadTranscript() {
+      try {
+        const response = await fetch('/download_transcript');
+        if (!response.ok) throw new Error('Failed to download transcript');
+        
+        // Get filename from response headers or use default
+        const filename = response.headers.get('content-disposition')?.split('filename=')[1] || 'interview_transcript.pdf';
+        
+        // Create blob and trigger download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error('Error downloading transcript:', error);
+        alert('Failed to download transcript. Please try again.');
+      }
+    }
+
+    // Initialize score animation when page loads
+    window.onload = () => {
+      const score = parseFloat(document.querySelector('.score-value').textContent);
+      animateScore(score);
+    };
+  </script>
+</body>
+</html>
